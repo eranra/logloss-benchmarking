@@ -9,18 +9,19 @@ then
 	exit
 fi
 
+export LOCALBIN=${HOME}/go/src/github.com/containers/podman/bin
 export MSGPERSEC=$1
 export MAXSIZE=$2
 export REPORT_INTERVAL=$3
 
 export PAYLOAD_SIZE=1024 
 export DISTRIBUTION=gaussian 
-export PAYLOAD_GEN=random
+export PAYLOAD_GEN=fixed
 export STDDEV=32 
 export OUTPUT=stdout 
 export REPORT=inline 
 #for total size 100mb set the below value
-export TOTAL_SIZE=10
+export TOTAL_SIZE=100
 
 export NOW=$(date +"%m%d%Y%H%M")
 
@@ -37,7 +38,7 @@ function pause(){
 #step 2 make all
 
 #get imageid post getting the image built
-export imageid=`podman images | grep latest | grep new-logging-load-driver | awk '{print $3}'`
+export imageid=`${LOCALBIN}/podman images | grep latest | grep logging-load-driver | awk '{print $3}'`
 
 #build a custom conmon in ${HOME}/FlowControl/Containers/conmon by building 'all' target "make all" 
 #install this binary for podman by doing make podman, note this step copies bin/conmon to /usr/local/libexec/podman/conmon
@@ -50,7 +51,8 @@ echo Using ConmonCustomBin:$conmonlatestlib
 
 echo MAX LOG FILE SIZE SET TO=$MAXSIZE
 #currently log-size-max option not support in the podman 2.1.xx version. you got to built conmon custom binary with log-size-max limit is hardcoded to 1mb
-CMD="podman run --conmon $conmonlatestlib --env MSGPERSEC --env PAYLOAD_GEN --env PAYLOAD_SIZE --env DISTRIBUTION --env STDDEV --env OUTPUT  --env REPORT --env REPORT_INTERVAL --env TOTAL_SIZE --log-opt max-size=$MAXSIZE  $imageid" 
+#CMD="${LOCALBIN}/podman run --log-level debug --conmon $conmonlatestlib --env MSGPERSEC --env PAYLOAD_GEN --env PAYLOAD_SIZE --env DISTRIBUTION --env STDDEV --env OUTPUT  --env REPORT --env REPORT_INTERVAL --env TOTAL_SIZE --log-opt max-size=$MAXSIZE  $imageid" 
+CMD="${LOCALBIN}/podman run  --conmon $conmonlatestlib --env MSGPERSEC --env PAYLOAD_GEN --env PAYLOAD_SIZE --env DISTRIBUTION --env STDDEV --env OUTPUT  --env REPORT --env REPORT_INTERVAL --env TOTAL_SIZE --log-opt max-size=$MAXSIZE  $imageid" 
 echo Going to run now: $CMD
 pause 'Press [Enter] key to run container...with '
 
@@ -58,10 +60,10 @@ pause 'Press [Enter] key to run container...with '
 $CMD  &> /tmp/containerOut_$NOW.txt &
 ####
 echo "check if container running"
-podman ps
+${LOCALBIN}/podman ps
 
 pause 'Press [Enter] key to get containerID...'
-export containerID=`podman ps | awk 'NR==2{print $1}'`
+export containerID=`${LOCALBIN}/podman ps | awk 'NR==2{print $1}'`
 echo ContainerID=$containerID
 
 export LOGFILE=${HOME}/.local/share/containers/storage/overlay-containers/$containerID*/userdata/ctr.log
@@ -74,15 +76,15 @@ pause 'Press [Enter] key to get logs verified and log-loss measured...'
 tail -F $LOGFILE | $VERIFYLOADER/verify-loader --report-interval=$REPORT_INTERVAL 
 
 echo "Running containers pids"
-podman ps
+${LOCALBIN}/podman ps
 
 
 pause 'Press [Enter] key to get clear container processes and log files...'
 rm /tmp/containerOut*.txt 
 rm -r ${HOME}/.local/share/containers/storage/overlay-containers/*
 echo "Killing the running containers processes those are running"
-podman stop -a
-podman rm -a
+${LOCALBIN}/podman stop -a
+${LOCALBIN}/podman rm -a
 #check if any container processes if still running
-podman ps
+${LOCALBIN}/podman ps
 
